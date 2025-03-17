@@ -3,20 +3,39 @@ import { createRouter, createWebHistory } from 'vue-router'
 const routes = [
   {
     path: '/',
-    name: 'home',
-    component: () => import('@/views/home.vue'),
-    meta: {
-      title: '首页'
-    }
+    name: 'layout',
+    component: () => import('@/views/layout.vue'),
+    redirect: '/chat',
+    // meta: {
+    //   title: '首页'
+    // }
+    children: [
+      {
+        path: '/chat',
+        name: 'chat',
+        component: () => import('@/views/chat.vue'),
+        meta: {
+          title: 'chat'
+        }
+      },
+      {
+        path: '/datasets',
+        name: 'datasets',
+        component: () => import('@/views/datasets.vue'),
+        meta: {
+          title: '知识库'
+        }
+      },
+      {
+        path: '/setting',
+        name: 'setting',
+        component: () => import('@/views/setting.vue'),
+        meta: {
+          title: '设置'
+        }
+      }
+    ]
   },
-  // {
-  //   path: '/about',
-  //   name: 'About',
-  //   component: () => import('@/views/AboutView.vue'),
-  //   meta: {
-  //     title: '关于'
-  //   }
-  // }
 ]
 
 const router = createRouter({

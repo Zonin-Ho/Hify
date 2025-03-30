@@ -15,7 +15,7 @@ const routes = [
         name: 'chat',
         component: () => import('@/views/chat.vue'),
         meta: {
-          title: 'chat'
+          title: '会话'
         }
       },
       {
@@ -36,6 +36,14 @@ const routes = [
       }
     ]
   },
+  {
+    path: '/login',
+    name: 'login',
+    component: () => import('@/views/login.vue'),
+    meta: {
+      title: '登录'
+    }
+  }
 ]
 
 const router = createRouter({

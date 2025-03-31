@@ -1,6 +1,7 @@
 import axios, { type AxiosInstance, type AxiosRequestConfig } from "axios"
 import { message } from 'ant-design-vue';
 import { get } from "lodash-es"
+import { useUserStore } from '@/stores/userStore';
 
 /** 创建请求实例 */
 function createService(): AxiosInstance {
@@ -8,7 +9,18 @@ function createService(): AxiosInstance {
   const service = axios.create()
   // 请求拦截
   service.interceptors.request.use(
-    (config) => config,
+    (config) => {
+      // 新增：排除特定路径的token处理
+      const excludedPaths = ['/login', '/registry'];
+      if (config.url && !excludedPaths.some(path => config.url!.includes(path))) {
+        const userStore = useUserStore();
+        const token = userStore.token;
+        if (token) {
+          config.headers.Authorization = token;
+        }
+      }
+      return config;
+    },
     // 发送失败
     (error) => Promise.reject(error)
   )
@@ -32,7 +44,7 @@ function createService(): AxiosInstance {
       if (response.config.url?.startsWith("/login") || res.code == "200") {
         return res
       }
-      msg = res.message || "请求错误"
+      msg = res.msg || "请求错误"
       message.error({
         content: msg,
         duration: 2
@@ -42,6 +54,8 @@ function createService(): AxiosInstance {
     (error) => {
       // status 是 HTTP 状态码
       const status = get(error, "response.status")
+      console.log(status);
+      
       switch (status) {
         case 400:
           error.message = "请求错误"

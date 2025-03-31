@@ -4,6 +4,7 @@
     <div class="w-[300px] border-r border-gray-200 bg-white overflow-y-auto">
       <div
         class="flex my-4 items-center justify-center h-[36px] bg-slate-200 rounded mx-4 cursor-pointer"
+        @click="isNewSession = true"
       >
         新建会话
       </div>
@@ -26,32 +27,35 @@
     <!-- 中间聊天区域 -->
     <div class="flex flex-col flex-1 p-5 space-y-4">
       <div class="flex-1 p-6 overflow-y-auto" ref="chatBox">
-        <div
-          v-for="(message, idx) in currentConversation?.messages || []"
-          :key="idx"
-          :class="[
-            message.sender === 'user' && 'justify-end',
-            message.sender === 'bot' && 'justify-start ',
-            'flex w-full mb-3',
-          ]"
-        >
+        <div v-if="isNewSession">欢迎使用Hify智能助手</div>
+        <template v-else>
           <div
-            v-if="message.displayContent"
+            v-for="(message, idx) in currentConversation?.messages || []"
+            :key="idx"
             :class="[
-              message.sender === 'user' && 'bg-blue-500 text-white',
-              message.sender === 'bot' &&
-                ' bg-white text-blue-500 markdown-body',
-              ' p-3 rounded max-w-[70%]',
+              message.sender === 'user' && 'justify-end',
+              message.sender === 'bot' && 'justify-start ',
+              'flex w-full mb-3',
             ]"
-            v-html="markMessage(message.displayContent)"
-          ></div>
-          <div
-            v-else
-            class="p-3 rounded max-w-[70%] bg-white text-blue-500 markdown-body"
           >
-            <a-spin />
+            <!-- 消息内容 -->
+            <div
+              v-if="message.displayContent"
+              :class="[
+                message.sender === 'user' && 'bg-blue-500 text-white',
+                message.sender === 'bot' &&
+                  ' bg-white text-blue-500 markdown-body',
+                ' p-3 rounded max-w-[70%]',
+              ]"
+              v-html="message.displayContent"
+            ></div>
+
+            <!-- 加载中 -->
+            <div v-else class="p-3 rounded max-w-[70%] bg-white text-blue-500">
+              <a-spin />
+            </div>
           </div>
-        </div>
+        </template>
       </div>
       <div class="flex flex-col p-4 space-y-2 bg-white rounded-lg">
         <a-textarea
@@ -89,22 +93,27 @@ import { ref, computed } from "vue";
 import { marked } from "marked";
 import { markedHighlight } from "marked-highlight";
 import hljs from "highlight.js";
-import type { SelectProps } from "ant-design-vue";
+import { message, type SelectProps } from "ant-design-vue";
+import { useUserStore } from "@/stores/userStore";
+import "github-markdown-css/github-markdown.css";
+
+const useStore = useUserStore();
+const isNewSession = ref(false);
 // 在setup外全局配置marked
 marked.use(
+  {
+    gfm: true,
+    breaks: true,
+  },
   markedHighlight({
-    highlight: (code: string, lang: string) => {
-      const language = hljs.getLanguage(lang) ? lang : "plaintext";
+    langPrefix: "hljs language-",
+    highlight(code, lang) {
+      const language = hljs.getLanguage(lang) ? lang : "shell";
       return hljs.highlight(code, { language }).value;
-    },
-    // 确保启用代码块渲染
-    configure: {
-      mangle: false,
-      headerIds: true,
-      langPrefix: "hljs language-",
     },
   })
 );
+
 const isDeepThink = ref(true);
 const selectedModel = ref("deepseek-r1:1.5b");
 const modelOption = ref<SelectProps["options"]>([
@@ -197,10 +206,16 @@ const polling = async function () {
         method: "GET",
         headers: {
           "Content-Type": "text/event-stream",
+          Authorization: useStore.token,
         },
       }
     );
     if (!response.ok || !response.body) {
+      if (response.status === 401) {
+        // 跳转到登录页面
+        message.error("登录信息已过期，请重新登录");
+        window.location.href = "/login";
+      }
       throw new Error(`HTTP error! status: ${response.status}`);
     }
     newMessage.value = "";
@@ -244,17 +259,29 @@ const addNewMessage = function (data: string) {
   }
 };
 const processServerSentEvent = function (eventData: string) {
+  console.log(eventData);
+  // let currentMessage = "";
   const lines = eventData.split("\n");
   let currentMessage = "";
   lines.forEach((line: string) => {
     if (line.startsWith("data:")) {
       // 提取data字段的值（去掉前面的'data: '）
       let a = line.split(":");
-      currentMessage += a[1];
+      if (a[1] == "<think>") {
+        currentMessage += "";
+      } else if (a[1] == "</think>") {
+        currentMessage += "";
+      } else if (a[1] == "。") {
+        currentMessage += ".\n";
+      } else {
+        currentMessage += a[1];
+      }
+      // currentMessage += a[1];
     } else {
       currentMessage += line.trim();
     }
   });
+  markMessage(currentMessage);
   addNewMessage(currentMessage);
 };
 const markMessage = function (message: string) {
@@ -296,3 +323,12 @@ const sendMessage = function () {
   polling();
 };
 </script>
+
+<style>
+.think {
+  text-indent: 2em;
+  background: #f0f0f0;
+  border-left: 4px solid #ccc;
+  padding-left: 13px;
+}
+</style>

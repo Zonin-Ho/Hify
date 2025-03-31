@@ -9,12 +9,18 @@
         :items="items"
       />
       <div class="flex items-center user-info">
-        <img
+        <!-- <img
           src=""
           alt="User Avatar"
           class="w-8 h-8 mr-2 rounded-full user-avatar"
-        />
-        <span class="pr-8 text-lg text-gray-800 user-name">用户</span>
+        /> -->
+        <a-avatar class="mr-2" shape="square" size="large">
+          <template #icon><UserOutlined /></template>
+        </a-avatar>
+        <span
+          class="w-40 pr-8 overflow-hidden text-lg text-gray-800 text-ellipsis user-name"
+          >{{ useStore.username }}</span
+        >
       </div>
     </div>
 
@@ -30,7 +36,11 @@ import {
   MailOutlined,
   AppstoreOutlined,
   SettingOutlined,
+  UserOutlined,
 } from "@ant-design/icons-vue";
+import { useUserStore } from "@/stores/userStore";
+
+const useStore = useUserStore();
 const route = useRoute();
 const current = ref<string[]>([route.name as string]);
 const items = ref<MenuProps["items"]>([

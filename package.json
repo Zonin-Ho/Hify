@@ -10,6 +10,8 @@
   },
   "dependencies": {
     "@ant-design/icons-vue": "^7.0.1",
+    "@tsparticles/slim": "^3.8.1",
+    "@tsparticles/vue3": "^3.0.1",
     "@types/crypto-js": "^4.2.2",
     "@types/lodash-es": "^4.17.12",
     "ant-design-vue": "^4.2.6",

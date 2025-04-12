@@ -9,15 +9,11 @@
         :items="items"
       />
       <div class="flex items-center user-info">
-        <!-- <img
-          src=""
-          alt="User Avatar"
-          class="w-8 h-8 mr-2 rounded-full user-avatar"
-        /> -->
         <a-avatar class="mr-2" shape="square" size="large">
           <template #icon><UserOutlined /></template>
         </a-avatar>
         <span
+          :title="useStore.username"
           class="w-40 pr-8 overflow-hidden text-lg text-gray-800 text-ellipsis user-name"
           >{{ useStore.username }}</span
         >

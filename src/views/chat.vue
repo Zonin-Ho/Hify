@@ -1,7 +1,7 @@
 <template>
   <div class="flex h-[calc(100vh-50px)] bg-gray-100">
     <!-- 左侧会话列表 -->
-    <div class="w-[300px] border-r border-gray-200 bg-white overflow-y-auto">
+    <div class="w-[230px] border-r border-gray-200 bg-white overflow-y-auto">
       <div
         class="flex my-4 items-center justify-center h-[36px] bg-slate-200 rounded mx-4 cursor-pointer"
         @click="isNewSession = true"
@@ -26,7 +26,7 @@
 
     <!-- 中间聊天区域 -->
     <div class="flex flex-col flex-1 p-5 space-y-4">
-      <div class="flex-1 p-6 overflow-y-auto" ref="chatBox">
+      <div class="overflow-y-auto flex-1 p-6" ref="chatBox">
         <div v-if="isNewSession">欢迎使用Hify智能助手</div>
         <template v-else>
           <div
@@ -47,8 +47,9 @@
                   ' bg-white text-blue-500 markdown-body',
                 ' p-3 rounded max-w-[70%]',
               ]"
-              v-html="message.displayContent"
-            ></div>
+            >
+              <Markdown :source="message.displayContent"></Markdown>
+            </div>
 
             <!-- 加载中 -->
             <div v-else class="p-3 rounded max-w-[70%] bg-white text-blue-500">
@@ -90,29 +91,16 @@
 
 <script lang="ts" setup>
 import { ref, computed } from "vue";
-import { marked } from "marked";
-import { markedHighlight } from "marked-highlight";
-import hljs from "highlight.js";
+// import { markedHighlight } from "marked-highlight";
+// import hljs from "highlight.js";
 import { message, type SelectProps } from "ant-design-vue";
 import { useUserStore } from "@/stores/userStore";
-import "github-markdown-css/github-markdown.css";
-
+// import "github-markdown-css/github-markdown.css";
+// 声明vue3-markdown-it模块
+import Markdown from "vue3-markdown-it";
+import "highlight.js/styles/monokai.css";
 const useStore = useUserStore();
 const isNewSession = ref(false);
-// 在setup外全局配置marked
-marked.use(
-  {
-    gfm: true,
-    breaks: true,
-  },
-  markedHighlight({
-    langPrefix: "hljs language-",
-    highlight(code, lang) {
-      const language = hljs.getLanguage(lang) ? lang : "shell";
-      return hljs.highlight(code, { language }).value;
-    },
-  })
-);
 
 const isDeepThink = ref(true);
 const selectedModel = ref("deepseek-r1:1.5b");
@@ -135,11 +123,11 @@ const modelOption = ref<SelectProps["options"]>([
     label: "Yiminghe",
   },
 ]);
-interface messageType {
-  sender: "user" | "bot"; // 发送者
-  content: string; // 大模型原本返回的消息内容
-  displayContent: string; // 消息内容，经过解析后的 HTML
-}
+// interface messageType {
+//   sender: "user" | "bot"; // 发送者
+//   content: string; // 大模型原本返回的消息内容
+//   displayContent: string; // 消息内容，经过解析后的 HTML
+// }
 // 定义会话数据结构
 const conversations = ref<any[]>([
   {
@@ -200,16 +188,14 @@ const scrollToBottom = function () {
 const polling = async function () {
   try {
     // 给定的字符串
-    const response = await fetch(
-      `/api/chat?message=${newMessage.value}&modelName=${selectedModel.value}`,
-      {
-        method: "GET",
-        headers: {
-          "Content-Type": "text/event-stream",
-          Authorization: useStore.token,
-        },
-      }
-    );
+    const response = await fetch(`/api/chat`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: useStore.token,
+      },
+      body: JSON.stringify({ message: newMessage.value }),
+    });
     if (!response.ok || !response.body) {
       if (response.status === 401) {
         // 跳转到登录页面
@@ -232,8 +218,6 @@ const polling = async function () {
       buffer = decoder.decode(value, { stream: true });
       processServerSentEvent(buffer);
     }
-    // 流结束时处理可能剩余的部分消息
-    // this.processServerSentEvent(buffer);
   } catch (e: any) {
     console.log(e.toString());
   }
@@ -259,37 +243,37 @@ const addNewMessage = function (data: string) {
   }
 };
 const processServerSentEvent = function (eventData: string) {
-  console.log(eventData);
+  // console.log(eventData);
   // let currentMessage = "";
-  const lines = eventData.split("\n");
   let currentMessage = "";
-  lines.forEach((line: string) => {
-    if (line.startsWith("data:")) {
-      // 提取data字段的值（去掉前面的'data: '）
-      let a = line.split(":");
-      if (a[1] == "<think>") {
-        currentMessage += "";
-      } else if (a[1] == "</think>") {
-        currentMessage += "";
-      } else if (a[1] == "。") {
-        currentMessage += ".\n";
-      } else {
-        currentMessage += a[1];
-      }
-      // currentMessage += a[1];
-    } else {
-      currentMessage += line.trim();
+  console.log("完整数据：", eventData);
+  let line = eventData.split("\n");
+  // line.pop();
+  // line = eventData;
+  for (let i = 0; i < line.length; i++) {
+    if (line[i].endsWith("[DONE]")) {
+      break;
     }
-  });
-  markMessage(currentMessage);
+
+    if (line[i].startsWith("data:") && line[i].slice(5)) {
+      console.log("转换前数据", line[i]);
+
+      let data = JSON.parse(line[i].slice(5)).message;
+      console.log("转换后数据", data);
+
+      if (data.endsWith("/\n/\n")) {
+        currentMessage += data.slice(0, -2) + "\n\n";
+      } else {
+        currentMessage += data;
+      }
+    }
+  }
+
+  // markMessage(currentMessage);
   addNewMessage(currentMessage);
 };
-const markMessage = function (message: string) {
-  // message = message.replaceAll("\\n", "\n");
-  // 直接使用已配置的marked.parse
-  return marked.parse(message);
-};
-const sendMessage = function () {
+
+const sendMessage = async function () {
   if (!newMessage.value.trim()) return;
 
   // 添加用户消息
@@ -298,9 +282,6 @@ const sendMessage = function () {
     content: newMessage.value,
     displayContent: newMessage.value,
   });
-
-  // this.userMsgData.content = markMessage(this.userInput);
-  // send(this.userMsgData);
 
   // 清空输入框
 
@@ -311,15 +292,6 @@ const sendMessage = function () {
     displayContent: "",
   };
   currentConversation.value.messages.push(newAiMessage);
-
-  // this.currentAiMessageId = newAiMessage.id;
-
-  // 启动轮询
-  // if (this.isEnd || !this.pollingActive) {
-  //   this.isEnd = false;
-  //   this.pollingActive = true;
-  //   this.polling();
-  // }
   polling();
 };
 </script>

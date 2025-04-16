@@ -1,0 +1,47 @@
+{
+  "name": "hify",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc -b && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@ant-design/icons-vue": "^7.0.1",
+    "@tsparticles/slim": "^3.8.1",
+    "@tsparticles/vue3": "^3.0.1",
+    "@types/crypto-js": "^4.2.2",
+    "@types/lodash-es": "^4.17.12",
+    "ant-design-vue": "^4.2.6",
+    "ant-design-x-vue": "^1.0.4",
+    "axios": "^1.8.3",
+    "crypto-js": "^4.2.0",
+    "dayjs": "^1.11.13",
+    "github-markdown-css": "^5.8.1",
+    "highlight.js": "^11.11.1",
+    "lodash-es": "^4.17.21",
+    "markdown-css": "^0.0.3",
+    "markdown-it": "^14.1.0",
+    "marked-highlight": "^2.2.1",
+    "pinia": "^3.0.1",
+    "vue": "^3.5.13",
+    "vue-router": "^4.5.0",
+    "vue3-markdown-it": "^1.0.10"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.10",
+    "@vitejs/plugin-vue": "^5.2.1",
+    "@vue/tsconfig": "^0.7.0",
+    "@vueuse/core": "^13.0.0",
+    "autoprefixer": "^10.4.21",
+    "code-inspector-plugin": "^0.20.6",
+    "postcss": "^8.5.3",
+    "tailwindcss": "^3.4.17",
+    "typescript": "~5.7.2",
+    "vite": "^6.2.0",
+    "vite-plugin-inspect": "^11.0.0",
+    "vue-tsc": "^2.2.4"
+  }
+}

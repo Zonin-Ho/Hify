@@ -1,0 +1,39 @@
+spring:
+  application:
+    name: demo
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/Hify
+    password: 12345678
+    username: root
+
+mybatis:
+  type-aliases-package: com.example.demo.entity
+  mapper-locations: classpath:mapper/*.xml
+  configuration:
+    map-underscore-to-camel-case: true
+
+langchain4j:
+  ollama:
+    chat-model:
+      base-url: "http://localhost:11434"
+      model-name: "deepseek-r1:8b"
+      temperature: 0.8
+      timeout: PT60s
+    streaming-chat-model:
+      base-url: "http://localhost:11434"
+      model-name: "deepseek-r1:8b"
+  open-ai:
+    chat-model:
+      api-key: sk-iimtvvjoatkeypqxsccryzjdsuqltwmjmnrftusbtapquyav
+      base-url: "https://api.siliconflow.cn/v1"
+      model-name: "Pro/deepseek-ai/DeepSeek-R1"
+    streaming-chat-model:
+      api-key: sk-iimtvvjoatkeypqxsccryzjdsuqltwmjmnrftusbtapquyav
+      base-url: "https://api.siliconflow.cn/v1"
+      model-name: "Pro/deepseek-ai/DeepSeek-R1"
+
+# 硅基流动模型配置
+silicon:
+  cloud:
+    model: "Qwen/QwQ-32B"  # 默认使用QwQ-32B模型，可以在此处更改为其他模型

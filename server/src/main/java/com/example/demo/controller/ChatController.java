@@ -32,7 +32,7 @@ public class ChatController {
     
     // 创建基于特定模型的Assistant实例
     private AiConfig.Assistant createAssistantForModel(String modelName) {
-        log.info("使用模型名词: {}", modelName);
+        log.info("使用模型名称: {}", modelName);
         
         // 使用ModelFactory创建模型实例
         ChatLanguageModel chatModel = ModelFactory.createChatModel(modelName);

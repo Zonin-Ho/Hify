@@ -14,15 +14,15 @@ mybatis:
     map-underscore-to-camel-case: true
 
 langchain4j:
-  ollama:
-    chat-model:
-      base-url: "http://localhost:11434"
-      model-name: "deepseek-r1:8b"
-      temperature: 0.8
-      timeout: PT60s
-    streaming-chat-model:
-      base-url: "http://localhost:11434"
-      model-name: "deepseek-r1:8b"
+#  ollama:
+#    chat-model:
+#      base-url: "http://localhost:11434"
+#      model-name: "deepseek-r1:8b"
+#      temperature: 0.8
+#      timeout: PT60s
+#    streaming-chat-model:
+#      base-url: "http://localhost:11434"
+#      model-name: "deepseek-r1:8b"
   open-ai:
     chat-model:
       api-key: sk-iimtvvjoatkeypqxsccryzjdsuqltwmjmnrftusbtapquyav
@@ -37,3 +37,9 @@ langchain4j:
 silicon:
   cloud:
     model: "Qwen/QwQ-32B"  # 默认使用QwQ-32B模型，可以在此处更改为其他模型
+
+minio:
+  endpoint: http://localhost:9000
+  access-key: minioadmin
+  secret-key: minioadmin
+  bucket-name: hify

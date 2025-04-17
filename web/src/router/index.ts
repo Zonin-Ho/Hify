@@ -26,14 +26,14 @@ const routes = [
           title: '知识库'
         }
       },
-      {
-        path: '/setting',
-        name: 'setting',
-        component: () => import('@/views/setting.vue'),
-        meta: {
-          title: '设置'
-        }
-      }
+      // {
+      //   path: '/setting',
+      //   name: 'setting',
+      //   component: () => import('@/views/setting.vue'),
+      //   meta: {
+      //     title: '设置'
+      //   }
+      // }
     ]
   },
   {

@@ -4,9 +4,6 @@ import zhCN from "ant-design-vue/es/locale/zh_CN";
 
 <template>
   <a-config-provider :local="zhCN">
-    <!-- <keep-alive>
-      <router-view></router-view>
-    </keep-alive> -->
     <router-view v-slot="{ Component }">
       <keep-alive>
         <component :is="Component" />

@@ -3,8 +3,8 @@
     <!-- 左侧会话列表 -->
     <div
       :class="[
-        'w-[230px] relative border-r border-gray-200 bg-white flex flex-col flex-wrap p-4',
-        !isExpand && 'w-[40px]',
+        'w-[230px] relative border-r border-gray-200 bg-white flex flex-col flex-wrap p-4 transition-all duration-200',
+        !isExpand && 'w-[40px] px-0',
       ]"
     >
       <LeftOutlined
@@ -19,9 +19,10 @@
       />
       <div
         :class="[
-          'flex w-full mb-4 items-center justify-center h-[36px] bg-gray-200 rounded cursor-pointer',
+          'flex w-full mb-4 items-center justify-center h-[36px] bg-gray-100 rounded cursor-pointer ',
           // isExpand && 'm-4',
-          !isExpand && 'm-0 bg-transparent hover:bg-blue-200 my-4',
+          isExpand && 'hover:bg-gray-200',
+          !isExpand && 'm-0 bg-transparent my-4',
         ]"
         @click="isNewSession = true"
       >
@@ -32,7 +33,10 @@
       </div>
       <a-list class="w-full">
         <a-list-item
-          class="!p-0 cursor-pointer hover:bg-gray-100 rounded"
+          :class="[
+            '!p-0 cursor-pointer rounded-lg',
+            isExpand && 'hover:bg-gray-100',
+          ]"
           v-for="(conversation, index) in conversations"
           :key="index"
           @click="selectConversation(index)"
@@ -40,7 +44,10 @@
           <a-list-item-meta class="group">
             <template #description>
               <div
-                class="flex justify-between content-center w-full h-10 text-center"
+                :class="[
+                  !isExpand && '!justify-center',
+                  'flex justify-between content-center w-full h-10 text-center',
+                ]"
               >
                 <span v-if="isExpand" class="pl-4 leading-10 text-black">
                   {{
@@ -53,7 +60,11 @@
                   :title="conversation.messages[0]?.displayContent || '无消息'"
                   ><MessageOutlined
                 /></a-tooltip>
-                <a-popover placement="bottomLeft" trigger="click">
+                <a-popover
+                  placement="bottomLeft"
+                  trigger="click"
+                  v-if="isExpand"
+                >
                   <template #content>
                     <div class="flex flex-col justify-items-start">
                       <a-button type="link" class="p-0 text-black"
@@ -83,23 +94,36 @@
         </a-list-item>
       </a-list>
       <div
-        class="flex items-center p-2 mt-auto mb-4 w-full rounded cursor-pointer user-info hover:bg-gray-200"
+        :class="[
+          'flex items-center mt-auto w-full rounded-lg cursor-pointer user-info group',
+          isExpand && 'px-2 py-1 hover:bg-gray-200',
+          !isExpand && 'justify-center',
+        ]"
+        @click="showModel = true"
       >
-        <a-avatar class="mr-2 aspect-square min-w-8" shape="square">
-          <template #icon><UserOutlined /></template>
+        <a-avatar
+          src="http://localhost:9000/hify/b_b75df21309c6906e28cbc27f6d781135.jpg"
+          :class="['mr-2 aspect-square min-w-8', !isExpand && '!mr-0']"
+          shape="square"
+        >
+          <!-- <template #icon><UserOutlined /></template> -->
         </a-avatar>
         <span
+          v-if="isExpand"
           :title="useStore.username"
           class="overflow-hidden w-48 text-lg text-gray-800 text-ellipsis user-name"
           >{{ useStore.username }}</span
-        >   
-        <RightOutlined />
+        >
+        <RightOutlined
+          class="hidden text-black group-hover:block"
+          v-if="isExpand"
+        />
       </div>
     </div>
 
     <!-- 中间聊天区域 -->
     <div class="flex flex-col flex-1 p-5 space-y-4 bg-gray-100">
-      <div class="overflow-y-auto flex-1 p-6" ref="chatBox">
+      <div class="overflow-y-auto flex-1 p-2" ref="chatBox">
         <div v-if="isNewSession">欢迎使用Hify智能助手</div>
         <template v-else>
           <div
@@ -146,8 +170,8 @@
           :auto-size="{ minRows: 2, maxRows: 5 }"
           allow-clear
         />
-        <div class="flex justify-between">
-          <div class="flex justify-between">
+        <div class="flex flex-wrap justify-between">
+          <div class="flex flex-wrap justify-between">
             <a-select
               show-search
               filter-option
@@ -169,6 +193,7 @@
         </div>
       </div>
     </div>
+    <Setting v-model:open="showModel"></Setting>
   </div>
 </template>
 
@@ -180,17 +205,18 @@ import "github-markdown-css/github-markdown-light.css";
 import Markdown from "vue3-markdown-it";
 import "highlight.js/styles/github.css";
 import { nextTick } from "vue";
+import Setting from "./setting.vue";
 import {
   LeftOutlined,
   RightOutlined,
   MessageOutlined,
   AppstoreAddOutlined,
-  UserOutlined,
   MoreOutlined,
 } from "@ant-design/icons-vue";
 const useStore = useUserStore();
 const isNewSession = ref(false);
 
+const showModel = ref(false);
 // const isThinking = ref(false);
 const isAbort = ref(false);
 const isExpand = ref(true);

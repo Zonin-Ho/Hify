@@ -18,11 +18,7 @@
 import { h, ref } from "vue";
 import { RouterLink, useRoute } from "vue-router";
 import type { MenuProps } from "ant-design-vue";
-import {
-  MailOutlined,
-  AppstoreOutlined,
-  SettingOutlined,
-} from "@ant-design/icons-vue";
+import { MailOutlined, AppstoreOutlined } from "@ant-design/icons-vue";
 // import { useUserStore } from "@/stores/userStore";
 
 // const useStore = useUserStore();
@@ -41,11 +37,11 @@ const items = ref<MenuProps["items"]>([
     label: h(RouterLink, { to: "/datasets" }, () => "知识库"),
     title: "知识库",
   },
-  {
-    key: "setting",
-    icon: () => h(SettingOutlined),
-    label: h(RouterLink, { to: "/setting" }, () => "设置"),
-    title: "设置",
-  },
+  // {
+  //   key: "setting",
+  //   icon: () => h(SettingOutlined),
+  //   label: h(RouterLink, { to: "/setting" }, () => "设置"),
+  //   title: "设置",
+  // },
 ]);
 </script>

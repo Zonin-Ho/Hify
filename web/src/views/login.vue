@@ -66,7 +66,7 @@
   <div
     class="flex items-center justify-center h-screen px-10 bg-gradient-to-b from-[#ffffff75] to-[#60a5fa75]"
   >
-    <div class="relative w-full max-w-md p-6 bg-white rounded-lg shadow-md">
+    <div class="relative p-6 w-full max-w-md bg-white rounded-lg shadow-md">
       <h2 class="mb-6 text-2xl font-bold text-center">
         <span class="text-[#387cd9] border-b-4 border-[#387cd9]">{{
           currentForm

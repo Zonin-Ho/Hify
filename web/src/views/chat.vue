@@ -167,7 +167,7 @@
         <a-textarea
           v-model:value="newMessage"
           placeholder="请输入消息..."
-          :auto-size="{ minRows: 2, maxRows: 5 }"
+          :auto-size="{ minRows: 1, maxRows: 4 }"
           allow-clear
         />
         <div class="flex flex-wrap justify-between">
@@ -187,9 +187,29 @@
             >
           </div>
 
-          <a-button type="primary" class="self-end" @click="sendMessage"
-            >发送</a-button
+          <a-button
+            type="primary"
+            class="flex justify-center items-center self-end"
+            shape="circle"
+            @click="sendMessage"
+            :disabled="!newMessage.trim()"
+            v-if="!isThinking"
           >
+            <template #icon>
+              <SendOutlined />
+            </template>
+          </a-button>
+          <a-button
+            type="primary"
+            class="flex justify-center items-center self-end"
+            shape="circle"
+            @click="stopThinking"
+            v-else
+          >
+            <template #icon>
+              <CloseSquareOutlined />
+            </template>
+          </a-button>
         </div>
       </div>
     </div>
@@ -212,14 +232,21 @@ import {
   MessageOutlined,
   AppstoreAddOutlined,
   MoreOutlined,
+  SendOutlined,
+  CloseSquareOutlined,
 } from "@ant-design/icons-vue";
 const useStore = useUserStore();
+// 是否新建会话
 const isNewSession = ref(false);
-
+// 模态框开关
 const showModel = ref(false);
-// const isThinking = ref(false);
+// 模型是否正在输出
+const isThinking = ref(false);
+// 是否终止请求
 const isAbort = ref(false);
+// 侧边栏开关
 const isExpand = ref(true);
+// 是否开启深度思考
 const isDeepThink = ref(true);
 const selectedModel = ref(
   localStorage.getItem("selectedModel") || "Qwen/QwQ-32B"
@@ -370,16 +397,24 @@ const scrollToBottom = function () {
     chatBox.value.scrollTop = chatBox.value.scrollHeight;
   }
 };
-
+const controller = new AbortController();
+function stopThinking() {
+  isThinking.value = false;
+  isAbort.value = true;
+  controller.abort();
+}
 const polling = async function () {
   try {
+    let msg = newMessage.value;
+    newMessage.value = "";
     // isThinking.value = true;
     isAbort.value = false;
-    const controller = new AbortController();
+
     // 给定的字符串
     let timer = setTimeout(() => {
       controller.abort();
     }, 60000);
+    isThinking.value = true;
     const response = await fetch(`/api/chat`, {
       method: "POST",
       headers: {
@@ -388,7 +423,7 @@ const polling = async function () {
       },
       signal: controller.signal,
       body: JSON.stringify({
-        message: newMessage.value,
+        message: msg,
         modelName: selectedModel.value,
       }),
     });
@@ -401,7 +436,7 @@ const polling = async function () {
       }
       throw new Error(`HTTP error! status: ${response.status}`);
     }
-    newMessage.value = "";
+
     const reader = response.body.getReader();
     const decoder = new TextDecoder("utf-8");
     let buffer = ""; // 用于累积部分消息
@@ -418,6 +453,7 @@ const polling = async function () {
   } catch (e: any) {
     if (e.name === "AbortError") {
       isAbort.value = true;
+      isThinking.value = false;
       console.log("请求已被中止");
       message.error("请求超时，请稍后再试");
       delNewMessage();
@@ -456,15 +492,14 @@ const processServerSentEvent = function (eventData: string) {
   let line = eventData.split("\n");
   for (let i = 0; i < line.length; i++) {
     if (line[i].endsWith("[DONE]")) {
+      isThinking.value = false;
       break;
     }
 
     if (line[i].startsWith("data:") && line[i].slice(5)) {
-      console.log("转换前数据", line[i]);
-
+      // 处理前面的"data:
       let data = JSON.parse(line[i].slice(5)).message;
-      console.log("转换后数据", data);
-
+      // 处理换行符
       if (data.endsWith("/\n/\n")) {
         currentMessage += data.slice(0, -2) + "\n\n";
       } else {
@@ -475,6 +510,7 @@ const processServerSentEvent = function (eventData: string) {
   addNewMessage(currentMessage);
 };
 
+// 发送消息
 const sendMessage = async function () {
   if (!newMessage.value.trim()) return;
 

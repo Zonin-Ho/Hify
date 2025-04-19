@@ -186,30 +186,39 @@
               >深度思考</a-button
             >
           </div>
-
-          <a-button
-            type="primary"
-            class="flex justify-center items-center self-end"
-            shape="circle"
-            @click="sendMessage"
-            :disabled="!newMessage.trim()"
-            v-if="!isThinking"
-          >
-            <template #icon>
-              <SendOutlined />
-            </template>
-          </a-button>
-          <a-button
-            type="primary"
-            class="flex justify-center items-center self-end"
-            shape="circle"
-            @click="stopThinking"
-            v-else
-          >
-            <template #icon>
-              <CloseSquareOutlined />
-            </template>
-          </a-button>
+          <div class="flex">
+            <a-button
+              class="flex justify-center items-center self-end mr-4"
+              shape="circle"
+              :type="isRecording ? 'primary' : 'default'"
+              @click="audio2text"
+            >
+              <template #icon><AudioTwoTone /></template>
+            </a-button>
+            <a-button
+              type="primary"
+              class="flex justify-center items-center self-end"
+              shape="circle"
+              @click="sendMessage"
+              :disabled="!newMessage.trim()"
+              v-if="!isThinking"
+            >
+              <template #icon>
+                <SendOutlined />
+              </template>
+            </a-button>
+            <a-button
+              type="primary"
+              class="flex justify-center items-center self-end"
+              shape="circle"
+              @click="stopThinking"
+              v-else
+            >
+              <template #icon>
+                <CloseSquareOutlined />
+              </template>
+            </a-button>
+          </div>
         </div>
       </div>
     </div>
@@ -234,6 +243,7 @@ import {
   MoreOutlined,
   SendOutlined,
   CloseSquareOutlined,
+  AudioTwoTone,
 } from "@ant-design/icons-vue";
 const useStore = useUserStore();
 // 是否新建会话
@@ -397,14 +407,21 @@ const scrollToBottom = function () {
     chatBox.value.scrollTop = chatBox.value.scrollHeight;
   }
 };
-const controller = new AbortController();
+let controller: AbortController | String | null = "";
+
 function stopThinking() {
   isThinking.value = false;
   isAbort.value = true;
-  controller.abort();
+  if (controller && typeof controller !== "string") {
+    (controller as AbortController).abort();
+  }
 }
 const polling = async function () {
   try {
+    if (controller) {
+      controller = null;
+    }
+    controller = new AbortController();
     let msg = newMessage.value;
     newMessage.value = "";
     // isThinking.value = true;
@@ -412,7 +429,9 @@ const polling = async function () {
 
     // 给定的字符串
     let timer = setTimeout(() => {
-      controller.abort();
+      if (controller && typeof controller !== "string") {
+        (controller as AbortController).abort();
+      }
     }, 60000);
     isThinking.value = true;
     const response = await fetch(`/api/chat`, {
@@ -457,6 +476,11 @@ const polling = async function () {
       console.log("请求已被中止");
       message.error("请求超时，请稍后再试");
       delNewMessage();
+      let newAiMessage = {
+        sender: "bot",
+        displayContent: "已停止生成内容",
+      };
+      currentConversation.value.messages.push(newAiMessage);
     }
     console.log(e.toString());
   }
@@ -529,6 +553,79 @@ const sendMessage = async function () {
   };
   currentConversation.value.messages.push(newAiMessage);
   polling();
+};
+
+// 语音识别状态
+const isRecording = ref(false);
+// 语音识别对象
+let recognition: any = null;
+
+// 语音转文字功能
+const audio2text = function () {
+  // 如果已经在录音，则停止录音
+  if (isRecording.value) {
+    stopRecording();
+    return;
+  }
+
+  // 检查浏览器是否支持语音识别
+  if (
+    !("webkitSpeechRecognition" in window) &&
+    !("SpeechRecognition" in window)
+  ) {
+    message.error("您的浏览器不支持语音识别功能，请使用Chrome浏览器");
+    return;
+  }
+
+  // 创建语音识别对象
+  const SpeechRecognition =
+    (window as any).SpeechRecognition ||
+    (window as any).webkitSpeechRecognition;
+  recognition = new SpeechRecognition();
+
+  // 设置语音识别参数
+  recognition.lang = "zh-CN"; // 设置语言为中文
+  recognition.continuous = false; // 不持续识别
+  recognition.interimResults = false; // 不返回中间结果
+
+  // 开始录音前提示用户
+  message.loading("正在听您说话...");
+  isRecording.value = true;
+
+  // 开始录音
+  recognition.start();
+
+  // 识别结果处理
+  recognition.onresult = function (event: {
+    results: { transcript: any }[][];
+  }) {
+    const result = event.results[0][0].transcript;
+    newMessage.value += result;
+    message.success("语音识别成功");
+    isRecording.value = false;
+  };
+
+  // 错误处理
+  recognition.onerror = function (event: { error: any }) {
+    console.error("语音识别错误:", event.error);
+    message.error("语音识别失败，请重试");
+    isRecording.value = false;
+  };
+
+  // 识别结束
+  recognition.onend = function () {
+    message.destroy(); // 清除所有消息提示
+    isRecording.value = false;
+  };
+};
+
+// 停止录音
+const stopRecording = function () {
+  if (recognition) {
+    recognition.stop();
+    message.info("已停止录音");
+    isRecording.value = false;
+  }
 };
 </script>
 

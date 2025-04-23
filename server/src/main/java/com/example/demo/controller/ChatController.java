@@ -10,6 +10,8 @@ import dev.langchain4j.memory.ChatMemory;
 import dev.langchain4j.memory.chat.MessageWindowChatMemory;
 import dev.langchain4j.model.chat.ChatLanguageModel;
 import dev.langchain4j.model.chat.StreamingChatLanguageModel;
+import dev.langchain4j.model.ollama.OllamaChatModel;
+import dev.langchain4j.model.ollama.OllamaStreamingChatModel;
 import dev.langchain4j.service.AiServices;
 import dev.langchain4j.service.TokenStream;
 import lombok.extern.slf4j.Slf4j;
@@ -17,6 +19,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
+
+import jakarta.servlet.http.HttpServletResponse;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -31,12 +35,12 @@ public class ChatController {
     private String defaultModelName;
     
     // 创建基于特定模型的Assistant实例
-    private AiConfig.Assistant createAssistantForModel(String modelName) {
-        log.info("使用模型名称: {}", modelName);
+    private AiConfig.Assistant createAssistantForModel(String modelName, String platform) {
+        log.info("使用模型名称: {}, 平台: {}", modelName, platform);
         
         // 使用ModelFactory创建模型实例
-        ChatLanguageModel chatModel = ModelFactory.createChatModel(modelName);
-        StreamingChatLanguageModel streamingChatModel = ModelFactory.createStreamingChatModel(modelName);
+        ChatLanguageModel chatModel = ModelFactory.createChatModel(modelName, platform);
+        StreamingChatLanguageModel streamingChatModel = ModelFactory.createStreamingChatModel(modelName, platform);
         
         // 创建聊天记忆
         ChatMemory chatMemory = MessageWindowChatMemory.withMaxMessages(20);
@@ -48,19 +52,35 @@ public class ChatController {
                 .chatMemory(chatMemory)
                 .build();
     }
+    
+    // 重载方法，使用默认平台
+    private AiConfig.Assistant createAssistantForModel(String modelName) {
+        return createAssistantForModel(modelName, ModelFactory.PLATFORM_DASHSCOPE);
+    }
 
     @PostMapping(value = "/chat", produces = "text/event-stream;charset=UTF-8")
-    public Flux<String> chat(@RequestBody ChatDTO chatDTO) {
+    public Flux<String> chat(@RequestBody ChatDTO chatDTO, HttpServletResponse response) {
+        log.info("用户询问：: {}", chatDTO.getMessage());
+        
+        // 设置禁用缓存的HTTP响应头
+        response.setHeader("Cache-Control", "no-cache");
+        response.setHeader("Pragma", "no-cache");
+        response.setHeader("X-Accel-Buffering", "no");
+        // response.setHeader("Expires", "0");
+        
         // 使用传入的modelName或默认值
         String modelName = (chatDTO.getModelName() != null && !chatDTO.getModelName().isEmpty()) 
                 ? chatDTO.getModelName() 
                 : defaultModelName;
         
-        log.info("Using model: {}", modelName);
+        // 获取平台参数，默认使用SiliconCloud
+        String platform = (chatDTO.getPlatform() != null && !chatDTO.getPlatform().isEmpty())
+                ? chatDTO.getPlatform()
+                : ModelFactory.PLATFORM_DASHSCOPE;
         
-        // 根据modelName创建或使用默认的Assistant
+        // 根据modelName和platform创建Assistant
         AiConfig.Assistant assistant;
-            assistant = createAssistantForModel(modelName);
+            assistant = createAssistantForModel(modelName, platform);
 
         
         return Flux.create(sink -> {

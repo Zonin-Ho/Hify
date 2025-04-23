@@ -8,16 +8,33 @@
       ></a-layout-header>
       <a-layout-content
         ><div v-if="activeKey === 'account'">
-          <ul>
-            <li>
-              头像：<a-avatar
-                shape="square"
-                src="https://cdn.jsdelivr.net/gh/ant-design/ant-design-icons@4.2.2/packages/icons-svg/svg/outline/user.svg"
-                alt="用户头像"
-              />
+          <ul class="flex flex-col gap-4 p-2">
+            <li class="flex justify-between items-center">
+              <div class="flex items-center">
+                <span class="w-20">头像：</span>
+                <a-avatar
+                  shape="square"
+                  size="large"
+                  src="http://localhost:9000/hify/b_b75df21309c6906e28cbc27f6d781135.jpg"
+                  alt="用户头像"
+                />
+              </div>
+              <!-- <div><a-button type="link">修改</a-button></div> -->
             </li>
-            <li>用户名：hzx0901</li>
-            <li>邮箱：1225853481@qq.com</li>
+            <li class="flex justify-between items-center">
+              <div class="flex items-center">
+                <span class="w-20">用户名：</span>
+                <a-input disabled v-model:value="username"></a-input>
+              </div>
+              <div><a-button type="link">修改</a-button></div>
+            </li>
+            <li class="flex justify-between items-center">
+              <div class="flex items-center">
+                <span class="w-20">邮箱：</span>
+                <a-input disabled v-model:value="email"></a-input>
+              </div>
+              <!-- <div><a-button type="link">修改</a-button></div> -->
+            </li>
           </ul>
         </div>
         <div v-else-if="activeKey === 'log'">
@@ -34,8 +51,11 @@
 </template>
 
 <script setup lang="ts">
+import { useUserStore } from "@/stores/userStore";
 import { ref } from "vue";
-
+const useStore = useUserStore();
+const username = ref(useStore.username);
+const email = ref(useStore.email);
 // const props = defineProps({
 //   modelValue: {
 //     type: Boolean,

@@ -124,7 +124,7 @@
     <!-- 中间聊天区域 -->
     <div class="flex flex-col flex-1 p-5 space-y-4 bg-gray-100">
       <div class="overflow-y-auto flex-1 p-2" ref="chatBox">
-        <div v-if="isNewSession">欢迎使用Hify智能助手</div>
+        <div v-if="isNewSession">欢迎使用智能对话助手，试着向我提问吧</div>
         <template v-else>
           <div
             v-for="(message, idx) in currentConversation?.messages || []"
@@ -138,14 +138,14 @@
             <!-- 消息内容 -->
             <div
               v-if="message.displayContent && message.sender === 'bot'"
-              class="p-3 rounded max-w-[70%] bg-white text-blue-500 markdown-body pb-0"
-            >
-              <Markdown :source="message.displayContent"></Markdown>
-              <!-- class="last-child:after:h-4 last-child:after:border-x last-child:after:inline last-child:after:animate-pulse" -->
-            </div>
+              class="p-3 rounded max-w-[100%] bg-white text-blue-500 markdown-body"
+              v-html="md.render(message.displayContent)"
+            ></div>
+            <!-- <Markdown :source="message.displayContent"></Markdown> -->
+            <!-- class="last-child:after:h-4 last-child:after:border-x last-child:after:inline last-child:after:animate-pulse" -->
             <div
               v-else-if="message.displayContent && message.sender === 'user'"
-              class="p-3 rounded max-w-[70%] bg-blue-500 text-white"
+              class="p-3 rounded max-w-[100%] bg-blue-500 text-white"
             >
               {{ message.displayContent }}
             </div>
@@ -163,19 +163,20 @@
           </div>
         </template>
       </div>
-      <div class="flex flex-col p-4 space-y-2 bg-white rounded-lg">
+      <div class="flex flex-col p-2 space-y-2 bg-white rounded-lg">
         <a-textarea
+          class="border-none focus:border-none focus:shadow-none"
           v-model:value="newMessage"
-          placeholder="请输入消息..."
+          placeholder="有问题，尽管问"
           :auto-size="{ minRows: 1, maxRows: 4 }"
           allow-clear
         />
-        <div class="flex flex-wrap justify-between">
-          <div class="flex flex-wrap justify-between">
+        <div class="flex gap-2 justify-between">
+          <div class="flex justify-between w-full md:w-fit">
             <a-select
               show-search
               filter-option
-              style="width: 240px; margin-right: 12px"
+              class="md:w-[240px] mr-3"
               v-model:value="selectedModel"
               :options="modelOption"
             >
@@ -186,38 +187,42 @@
               >深度思考</a-button
             >
           </div>
-          <div class="flex">
-            <a-button
-              class="flex justify-center items-center self-end mr-4"
-              shape="circle"
-              :type="isRecording ? 'primary' : 'default'"
-              @click="audio2text"
-            >
-              <template #icon><AudioTwoTone /></template>
-            </a-button>
-            <a-button
-              type="primary"
-              class="flex justify-center items-center self-end"
-              shape="circle"
-              @click="sendMessage"
-              :disabled="!newMessage.trim()"
-              v-if="!isThinking"
-            >
-              <template #icon>
-                <SendOutlined />
-              </template>
-            </a-button>
-            <a-button
-              type="primary"
-              class="flex justify-center items-center self-end"
-              shape="circle"
-              @click="stopThinking"
-              v-else
-            >
-              <template #icon>
-                <CloseSquareOutlined />
-              </template>
-            </a-button>
+          <div class="flex justify-end w-full">
+            <a-tooltip placement="top" title="语音输入">
+              <a-button
+                class="flex justify-center items-center self-end mr-2"
+                shape="circle"
+                :type="isRecording ? 'primary' : 'default'"
+                @click="audio2text"
+              >
+                <template #icon><AudioTwoTone /></template>
+              </a-button>
+            </a-tooltip>
+            <a-tooltip v-if="!isThinking" placement="top" title="发送">
+              <a-button
+                type="primary"
+                class="flex justify-center items-center self-end"
+                shape="circle"
+                @click="sendMessage"
+                :disabled="!newMessage.trim()"
+              >
+                <template #icon>
+                  <SendOutlined />
+                </template>
+              </a-button>
+            </a-tooltip>
+            <a-tooltip v-else placement="top" title="暂停输出">
+              <a-button
+                type="primary"
+                class="flex justify-center items-center self-end"
+                shape="circle"
+                @click="stopThinking"
+              >
+                <template #icon>
+                  <CloseSquareOutlined />
+                </template>
+              </a-button>
+            </a-tooltip>
           </div>
         </div>
       </div>
@@ -227,11 +232,10 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, computed, watch } from "vue";
+import { ref, computed, watch, onMounted } from "vue";
 import { message, type SelectProps } from "ant-design-vue";
 import { useUserStore } from "@/stores/userStore";
 import "github-markdown-css/github-markdown-light.css";
-import Markdown from "vue3-markdown-it";
 import "highlight.js/styles/github.css";
 import { nextTick } from "vue";
 import Setting from "./setting.vue";
@@ -245,6 +249,56 @@ import {
   CloseSquareOutlined,
   AudioTwoTone,
 } from "@ant-design/icons-vue";
+import MarkdownIt from "markdown-it";
+import hljs from "highlight.js";
+import Clipboard from "clipboard";
+
+const md = new MarkdownIt({
+  html: true,
+  linkify: true,
+  typographer: true,
+  highlight: function (str: string, lang: string) {
+    // 当前时间加随机数生成唯一的id标识
+    const codeIndex = (
+      parseInt(Date.now().toString()) + Math.floor(Math.random() * 10000000)
+    ).toString();
+    // 复制功能主要使用的是 clipboard.js
+    let html = `<button class="copy-btn" type="button" data-clipboard-action="copy" data-clipboard-target="#copy${codeIndex}">复制</button>`;
+    const linesLength = str.split(/\n/).length - 1;
+    // 生成行号
+    let linesNum = '<span aria-hidden="true" class="line-numbers-rows">';
+    for (let index = 0; index < linesLength; index++) {
+      linesNum = linesNum + "<span></span>";
+    }
+    linesNum += "</span>";
+    if (lang && hljs.getLanguage(lang)) {
+      try {
+        // highlight.js 高亮代码
+        const preCode = hljs.highlight(lang, str, true).value;
+        html = html + preCode;
+        if (linesLength) {
+          html += '<b class="name">' + lang + "</b>";
+        }
+        // 将代码包裹在 textarea 中
+        return `<pre class="hljs"><code>${html}</code>${linesNum}</pre><textarea style="position: absolute;top: -9999px;left: -9999px;z-index: -9999;" id="copy${codeIndex}">${str.replace(
+          /<\/textarea>/g,
+          "&lt;/textarea>"
+        )}</textarea>`;
+      } catch (error) {
+        console.log(error);
+      }
+    }
+
+    const preCode = md.utils.escapeHtml(str);
+    html = html + preCode;
+    // 将代码包裹在 textarea 中
+    return `<pre class="hljs"><code>${html}</code>${linesNum}</pre><textarea style="position: absolute;top: -9999px;left: -9999px;z-index: -9999;" id="copy${codeIndex}">${str.replace(
+      /<\/textarea>/g,
+      "&lt;/textarea>"
+    )}</textarea>`;
+  },
+});
+
 const useStore = useUserStore();
 // 是否新建会话
 const isNewSession = ref(false);
@@ -270,86 +324,45 @@ watch(
 );
 
 const modelOption = ref<SelectProps["options"]>([
-  { value: "Qwen/QwQ-32B", label: "Qwen/QwQ-32B" },
   {
-    value: "Pro/deepseek-ai/DeepSeek-R1",
-    label: "Pro/deepseek-ai/DeepSeek-R1",
+    label: "硅基流动",
+    options: [
+      { value: "Qwen/QwQ-32B", label: "QwQ-32B" },
+      {
+        value: "Pro/deepseek-ai/DeepSeek-R1",
+        label: "DeepSeek-R1",
+      },
+      {
+        value: "Pro/deepseek-ai/DeepSeek-V3",
+        label: "DeepSeek-V3",
+      },
+      {
+        value: "Qwen/Qwen2.5-72B-Instruct",
+        label: "Qwen2.5-72B-Instruct",
+      },
+      { value: "Qwen/QwQ-32B-Preview", label: "QwQ-32B-Preview" },
+      {
+        value: "Vendor-A/Qwen/Qwen2.5-72B-Instruct",
+        label: "Qwen2.5-72B-Instruct",
+      },
+      {
+        value: "internlm/internlm2_5-20b-chat",
+        label: "internlm2_5-20b-chat",
+      },
+    ],
   },
   {
-    value: "Pro/deepseek-ai/DeepSeek-V3",
-    label: "Pro/deepseek-ai/DeepSeek-V3",
+    label: "阿里百炼",
+    options: [
+      { value: "qwen-max", label: "qwen-max" },
+      { value: "qwq-plus", label: "qwq-plus" },
+      { value: "deepseek-r1", label: "deepseek-r1" },
+      {
+        value: "deepseek-r1-distill-qwen-7b",
+        label: "deepseek-r1-distill-qwen-7b",
+      },
+    ],
   },
-  { value: "deepseek-ai/DeepSeek-R1", label: "deepseek-ai/DeepSeek-R1" },
-  { value: "deepseek-ai/DeepSeek-V3", label: "deepseek-ai/DeepSeek-V3" },
-  {
-    value: "deepseek-ai/DeepSeek-R1-Distill-Qwen-32B",
-    label: "deepseek-ai/DeepSeek-R1-Distill-Qwen-32B",
-  },
-  {
-    value: "deepseek-ai/DeepSeek-R1-Distill-Qwen-14B",
-    label: "deepseek-ai/DeepSeek-R1-Distill-Qwen-14B",
-  },
-  {
-    value: "deepseek-ai/DeepSeek-R1-Distill-Qwen-7B",
-    label: "deepseek-ai/DeepSeek-R1-Distill-Qwen-7B",
-  },
-  {
-    value: "deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B",
-    label: "deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B",
-  },
-  {
-    value: "Pro/deepseek-ai/DeepSeek-R1-Distill-Qwen-7B",
-    label: "Pro/deepseek-ai/DeepSeek-R1-Distill-Qwen-7B",
-  },
-  {
-    value: "Pro/deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B",
-    label: "Pro/deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B",
-  },
-  { value: "deepseek-ai/DeepSeek-V2.5", label: "deepseek-ai/DeepSeek-V2.5" },
-  {
-    value: "Qwen/Qwen2.5-72B-Instruct-128K",
-    label: "Qwen/Qwen2.5-72B-Instruct-128K",
-  },
-  { value: "Qwen/Qwen2.5-72B-Instruct", label: "Qwen/Qwen2.5-72B-Instruct" },
-  { value: "Qwen/Qwen2.5-32B-Instruct", label: "Qwen/Qwen2.5-32B-Instruct" },
-  { value: "Qwen/Qwen2.5-14B-Instruct", label: "Qwen/Qwen2.5-14B-Instruct" },
-  { value: "Qwen/Qwen2.5-7B-Instruct", label: "Qwen/Qwen2.5-7B-Instruct" },
-  {
-    value: "Qwen/Qwen2.5-Coder-32B-Instruct",
-    label: "Qwen/Qwen2.5-Coder-32B-Instruct",
-  },
-  {
-    value: "Qwen/Qwen2.5-Coder-7B-Instruct",
-    label: "Qwen/Qwen2.5-Coder-7B-Instruct",
-  },
-  { value: "Qwen/Qwen2-7B-Instruct", label: "Qwen/Qwen2-7B-Instruct" },
-  { value: "Qwen/Qwen2-1.5B-Instruct", label: "Qwen/Qwen2-1.5B-Instruct" },
-  { value: "Qwen/QwQ-32B-Preview", label: "Qwen/QwQ-32B-Preview" },
-  // { value: "TeleAI/TeleChat2", label: "TeleAI/TeleChat2" },
-  { value: "THUDM/glm-4-9b-chat", label: "THUDM/glm-4-9b-chat" },
-  {
-    value: "Vendor-A/Qwen/Qwen2.5-72B-Instruct",
-    label: "Vendor-A/Qwen/Qwen2.5-72B-Instruct",
-  },
-  {
-    value: "internlm/internlm2_5-7b-chat",
-    label: "internlm/internlm2_5-7b-chat",
-  },
-  {
-    value: "internlm/internlm2_5-20b-chat",
-    label: "internlm/internlm2_5-20b-chat",
-  },
-  {
-    value: "Pro/Qwen/Qwen2.5-7B-Instruct",
-    label: "Pro/Qwen/Qwen2.5-7B-Instruct",
-  },
-  { value: "Pro/Qwen/Qwen2-7B-Instruct", label: "Pro/Qwen/Qwen2-7B-Instruct" },
-  {
-    value: "Pro/Qwen/Qwen2-1.5B-Instruct",
-    label: "Pro/Qwen/Qwen2-1.5B-Instruct",
-  },
-  { value: "Pro/THUDM/chatglm3-6b", label: "Pro/THUDM/chatglm3-6b" },
-  { value: "Pro/THUDM/glm-4-9b-chat", label: "Pro/THUDM/glm-4-9b-chat" },
 ]);
 // interface messageType {
 //   sender: "user" | "bot"; // 发送者
@@ -382,8 +395,8 @@ const conversations = ref<any[]>([
     ],
   },
 ]);
-const isEnd = ref(false);
-const pollingActive = ref(false);
+// const isEnd = ref(false);
+// const pollingActive = ref(false);
 // 当前选中的会话索引
 const selectedConversationIndex = ref(0);
 
@@ -432,12 +445,14 @@ const polling = async function () {
       if (controller && typeof controller !== "string") {
         (controller as AbortController).abort();
       }
-    }, 60000);
+    }, 120000);
     isThinking.value = true;
     const response = await fetch(`/api/chat`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        // "Cache-Control": "no-cache",
+        // "X-Accel-Buffering": "no",
         Authorization: useStore.token,
       },
       signal: controller.signal,
@@ -458,16 +473,15 @@ const polling = async function () {
 
     const reader = response.body.getReader();
     const decoder = new TextDecoder("utf-8");
-    let buffer = ""; // 用于累积部分消息
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) {
-        isEnd.value = true;
-        pollingActive.value = false;
-        break;
-      }
-      buffer = decoder.decode(value, { stream: true });
-      processServerSentEvent(buffer);
+    // let buffer = ""; // 用于累积部分消息
+    let done = false;
+    while (!done) {
+      const { done: readerDone, value } = await reader.read();
+      done = readerDone;
+      let chunk = decoder.decode(value, { stream: true });
+      console.log("数据：", chunk);
+
+      await processServerSentEvent(chunk);
     }
   } catch (e: any) {
     if (e.name === "AbortError") {
@@ -510,9 +524,11 @@ const addNewMessage = async function (data: string) {
     }
   }
 };
-const processServerSentEvent = function (eventData: string) {
+const processServerSentEvent = async function (eventData: string) {
   let currentMessage = "";
-  console.log("完整数据：", eventData);
+  // console.log("完整数据：", eventData);
+  // let data = JSON.parse(eventData.slice(5)).message.replace("/\n", "\n");
+  // currentMessage += data;
   let line = eventData.split("\n");
   for (let i = 0; i < line.length; i++) {
     if (line[i].endsWith("[DONE]")) {
@@ -520,12 +536,33 @@ const processServerSentEvent = function (eventData: string) {
       break;
     }
 
-    if (line[i].startsWith("data:") && line[i].slice(5)) {
-      // 处理前面的"data:
-      let data = JSON.parse(line[i].slice(5)).message;
-      // 处理换行符
-      if (data.endsWith("/\n/\n")) {
-        currentMessage += data.slice(0, -2) + "\n\n";
+    // if (line[i].startsWith("data:") && line[i].slice(5)) {
+    //   // 处理前面的"data:
+    //   let data = JSON.parse(line[i].slice(5)).message.replace("/\n", "\n");
+    //   if (data == "<think>") {
+    //     currentMessage += "<div class='think'>";
+    //   } else if (data == "</think>") {
+    //     currentMessage += "</div>";
+    //   } else {
+    //     currentMessage += data;
+    //   }
+    //   // currentMessage += data;
+    //   // 处理换行符
+    //   // if (data.endsWith("/\n/\n")) {
+    //   //   currentMessage += data.slice(0, -2) + "\n\n";
+    //   // } else {
+
+    //   // }
+    // }
+    if (line[i].endsWith("}")) {
+      let data = JSON.parse(line[i].replace("data:", "")).message.replace(
+        "/\n",
+        "\n"
+      );
+      if (data == "<think>") {
+        currentMessage += "<div class='think'>";
+      } else if (data == "</think>") {
+        currentMessage += "</div>";
       } else {
         currentMessage += data;
       }
@@ -627,13 +664,86 @@ const stopRecording = function () {
     isRecording.value = false;
   }
 };
+
+onMounted(() => {
+  nextTick(() => {
+    let clipboard = new Clipboard(".copy-btn");
+    clipboard.on("success", function (e: { clearSelection: () => void }) {
+      message.success("复制成功");
+      e.clearSelection();
+    });
+    clipboard.on("error", function () {
+      message.error("复制失败");
+    });
+  });
+});
 </script>
 
-<style>
+<style lang="scss">
 .think {
   text-indent: 2em;
   background: #f0f0f0;
   border-left: 4px solid #ccc;
   padding-left: 13px;
+}
+pre.hljs {
+  padding: 12px 2px 30px 40px !important;
+  border-radius: 5px !important;
+  position: relative;
+  font-size: 14px !important;
+  line-height: 22px !important;
+  overflow: hidden !important;
+  code {
+    display: block !important;
+    margin: 0 10px !important;
+    overflow-x: auto !important;
+  }
+  .line-numbers-rows {
+    position: absolute;
+    pointer-events: none;
+    top: 12px;
+    bottom: 12px;
+    left: 0;
+    font-size: 100%;
+    width: 40px;
+    text-align: center;
+    letter-spacing: -1px;
+    border-right: 1px solid rgba(0, 0, 0, 0.66);
+    user-select: none;
+    counter-reset: linenumber;
+    span {
+      pointer-events: none;
+      display: block;
+      counter-increment: linenumber;
+      &:before {
+        content: counter(linenumber);
+        color: #999;
+        display: block;
+        text-align: center;
+      }
+    }
+  }
+  b.name {
+    position: absolute;
+    bottom: 2px;
+    right: 10px;
+    z-index: 10;
+    font-size: 12px;
+    color: #999;
+  }
+  .copy-btn {
+    position: absolute;
+    top: 2px;
+    right: 4px;
+    z-index: 10;
+    color: #333;
+    cursor: pointer;
+    padding: 4px;
+    border: 0;
+    border-radius: 2px;
+    &:hover {
+      background-color: #fff;
+    }
+  }
 }
 </style>
